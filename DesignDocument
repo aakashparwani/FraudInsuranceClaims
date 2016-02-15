@@ -1,0 +1,87 @@
+OBJECTIVE
+The main objective of the project is to perform a text mining on news articles related to Insurance frauds and extract the fraud type and details of the convict. This document is intended to assist the relevant management or technical staff in understanding our methodology to the capstone project.  
+
+OVERVIEW
+Fraud Detection has become significant in almost every industry; from banking and financial sectors to insurance and even government agencies. The reason for this is drastic increase in frauds in recent years. Billions of money was lost as a result of these unhealthy practices despite many precautions taken by these industries. Since these fraud cases occur in very few cases when a large population is taken into account, detecting these frauds is rather tricky and sometimes very cumbersome too
+Insurance fraud is said to occur when a person or people cheat an insurance company to claim some money to which they are not entitled to. In Insurance fraud cases , close to 15% of claims contain some or the other fraud while the company loses close to 10% of money in payout dollars. Sometimes people deliberately cause an accident to claim the insurance money and sometimes exaggerate the losses to claim more money than they deserve.
+Text mining has emerged as one of the best techniques in the recent years to improve the fraud detection programs. The basic objective would be to align all the data which can be associated with the current record under consideration. The record can be an insurance claim or any credit card application. 
+
+PREREQUISITES:
+Install all the Packages listed below:
+NLTK - http://www.nltk.org/install.html
+Stanford NER - http://nlp.stanford.edu/software/CRF-NER.shtml
+Geocoder - https://pypi.python.org/pypi/geocoder
+RE - https://docs.python.org/2/library/re.html
+Counter - https://pypi.python.org/pypi/Counter/1.0.0
+XLRD - https://pypi.python.org/pypi/xlrd
+Xlutils - pip install Xlutils
+Tomcat server - http://tomcat.apache.org/
+
+DESIGN CONSIDERATIONS
+Programming Language : Python
+IDE: Spider , Eclipse
+Packages : NLTK,NER,XLRD,RE, US
+
+DATA STRUCTURE
+LIST, DICTIONARY, ARRAY
+
+TYPES OF INSURANCE FRAUD
+Life Insurance
+Health Insurance
+Auto Insurance
+Property Insurance
+Health care Insurance
+Health-care insurance
+Auto-insurance
+Business insurance
+Medical insurance
+Healthcare insurance
+Workers compensation
+Private healthcare
+Federal Healthcare
+State healthcare
+Catastrophe-related property
+Catastrophe
+Crop insurance
+Auto injury
+Automobile insurance
+Homeowners insurance
+Fighting insurance
+Premium fraud
+
+PROCEDURE
+1. Initialized all the necessary packages.
+2. Loaded the Data File into the memory from the local drive.
+3. Iterated through each article (row) first column and load the article into List for analysis. 
+4. Scan all the NAME entities from article using Stanford NER and put in a separate column.
+5. Split the article in sentences and try to find those sentences which contains any name that figured out in above step. Advantage of this step is in further analysis, we will have to take care of these sentences only instead of going through complete article. 
+6. Created copy of data structure that has been built above using Deep Copy method.
+7. Removed Stop Words from new data structure.
+8. Defined context in which we have to do analysis of article, for example: article is stating about Auto-Insurance Fraud, Health Insurance Fraud etc. And created a dictionary of possible Insurance frauds.
+9. Iterated through that dictionary and tried to find out type of Insurance Fraud in articles.
+10. Defined the dictionary of common phrases used in articles to highlight suspect.
+11. Now article is iterated row wise to find occurrence of Phrases with Names. This step is performed to narrow down our analysis, as names are directly linked with phrases.
+12. If a sentence has a name and the word, then the name is concluded as the convict.
+13. Now the rows which were not directly containing those Phrases with Names. For them, again iterate with final suspect list we got in Step 12 because those names could be included in other cases also.
+14. The Insurance Frauds list is searched through the refined sentences, and then if any of the item in the list matches, then that.
+15. Now using US package took out all the States in the List.
+16. Iterated the text with States list and Convicted names, if state name is found then update the article with State.
+
+EXPECTED RESULTS 
+The following needs to be extracted:
+1. Name(s) of the convicts
+2. Location of the fraud
+3. Type of the fraud
+
+ACTUAL RESULTS 
+The following are found out
+1. Name(s) of the convicts
+2. Location of the fraud
+3. Type of the fraud
+
+REFRENCES
+https://en.wikipedia.org/wiki/Insurance_fraud
+http://legaldictionary.net/insurance-fraud/
+http://www.insurance-research.org/research-publications?page=9
+http://www.iii.org/issue-update/insurance-fraud
+http://fjavieralba.com/basic-sentiment-analysis-with-python.html
