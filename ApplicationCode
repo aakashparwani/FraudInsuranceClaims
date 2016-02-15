@@ -1,0 +1,458 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Dec 30 15:23:33 2015
+
+@author: hp
+"""
+
+import xlrd
+import xlwt
+import ner
+import re
+import os
+import copy
+from collections import Counter
+from nltk.corpus import stopwords
+
+
+os.environ['currworkdir'] = "D:/Fraud_Analysis_Test_E2.xlsx"
+
+tagger = ner.SocketNER(host='localhost', port=8081)
+
+workbook = xlrd.open_workbook(os.environ.get('currworkdir'))
+
+sheet = workbook.sheet_by_index(2)
+
+completedata = [[sheet.cell_value(r,c) for c in range(sheet.ncols)] for r in range(sheet.nrows)]
+
+noperson=0
+for n in range(0,len(completedata)):
+    if n==0:
+        completedata[n].append('NameEntity');
+#        completedata[n].append('Locations');
+    else:    
+        if 'PERSON' in tagger.get_entities(completedata[n][0]):
+            completedata[n].append(tagger.get_entities(completedata[n][0])['PERSON']);
+        else:
+            completedata[n].append('');                 
+            noperson += 1;             
+
+for n in range(0,len(completedata)):
+    if n==0:
+        completedata[n].append('UniqueNameEntity');                 
+    else:    
+        completedata[n].append(set(completedata[n][6]));
+        completedata[n][7] = list(completedata[n][7]);
+
+
+UniqueSentences = [];
+for n in range(0,len(completedata)):
+    if n==0:
+        completedata[n].append('Sentences');                 
+    else:
+        if completedata[n][7]<> '':        
+            UniquePerson = completedata[n][7];
+            for t in range(0,len(completedata[n][0].splitlines())):            
+                if completedata[n][0].splitlines()[t]<>'':
+                    for r in range(0,len(UniquePerson)):
+                            if UniquePerson[r] in completedata[n][0].splitlines()[t]:
+                                if UniqueSentences == '':
+                                    UniqueSentences = completedata[n][0].splitlines()[t];
+                                else:    
+                                    UniqueSentences.append(completedata[n][0].splitlines()[t]);
+                                break    
+                                    
+            completedata[n].append(UniqueSentences);                 
+            UniqueSentences = [];
+                                                             
+
+           
+##########################################################################################################################
+
+#find state names from sentences
+stateslist = [
+        'Alaska',
+        'Alabama',
+        'Arkansas',
+        'American Samoa',
+        'Arizona',
+        'California',
+        'Colorado',
+        'Connecticut',
+        'District of Columbia',
+        'Delaware',
+        'Florida',
+        'Georgia',
+        'Guam',
+        'Hawaii',
+        'Iowa',
+        'Idaho',
+        'Illinois',
+        'Indiana',
+        'Kansas',
+        'Kentucky',
+        'Louisiana',
+        'Massachusetts',
+        'Maryland',
+        'Maine',
+        'Michigan',
+        'Minnesota',
+        'Missouri',
+        'Northern Mariana Islands',
+        'Mississippi',
+        'Montana',
+        'National',
+        'North Carolina',
+        'North Dakota',
+        'Nebraska',
+        'New Hampshire',
+        'New Jersey',
+        'New Mexico',
+        'Nevada',
+        'New York',
+        'Ohio',
+        'Oklahoma',
+        'Oregon',
+        'Pennsylvania',
+        'Puerto Rico',
+        'Rhode Island',
+        'South Carolina',
+        'South Dakota',
+        'Tennessee',
+        'Texas',
+        'Utah',
+        'Virginia',
+        'Virgin Islands',
+        'Vermont',
+        'Washington',
+        'Wisconsin',
+        'West Virginia',
+        'Wyoming'
+]           
+
+statelisttoupdate=[]
+textwithnostate=[]
+counter=0
+for v in range (0,len(completedata)):
+#for v in range (0,8):
+    if v==0:
+        completedata[v].append('State');
+    else:
+        if len(completedata[v][8])<> 0: 
+            for sentencetrace in range(0,len(completedata[v][8])):
+                for countstate in range (0,len(stateslist)):
+                    if completedata[v][8][sentencetrace].find(stateslist[countstate])!=-1 :
+                        statelisttoupdate.append(stateslist[countstate]);
+                        counter +=1
+                
+            if counter<>0:
+                if len(set(statelisttoupdate))==1:
+                    statelisttoupdate = set(statelisttoupdate);
+                    statelisttoupdate = list(statelisttoupdate);
+                    completedata[v].append(statelisttoupdate);
+                elif len(set(statelisttoupdate)) > 1:    
+                    commonstate,num_commonstate = Counter(statelisttoupdate).most_common(1)[0]
+                    completedata[v].append(commonstate);
+#                completedata[v].append(statelisttoupdate);
+                statelisttoupdate=[]
+                counter=0
+            else:
+                completedata[v].append([]);
+                textwithnostate.append(v)
+                
+        else:
+            completedata[v].append([]);     
+            textwithnostate.append(v)
+
+##########################################################################################################################
+
+cachedStopWords = stopwords.words("english")
+
+CompletedataNoStopWords = copy.deepcopy(completedata)
+
+
+for p in range(0,len(CompletedataNoStopWords)):
+    CompletedataNoStopWords[p][0] = CompletedataNoStopWords[p][0].lower(); 
+
+
+def fctremovestopwords(text):
+   text = ' '.join([word for word in text.split() if word not in cachedStopWords])
+   return text;
+
+#Remove stop words
+for p in range(0,len(CompletedataNoStopWords)):
+    if p == 0:
+        print 'escape headers';
+    else:
+        text = CompletedataNoStopWords[p][0];
+        CompletedataNoStopWords[p][0] = fctremovestopwords(text); 
+    
+for p in range(0,len(CompletedataNoStopWords)):
+    if p == 0:
+        print 'escape headers';
+    else:
+        for r in range(0,len(CompletedataNoStopWords[p][8])):
+            text = CompletedataNoStopWords[p][8][r];
+            CompletedataNoStopWords[p][8][r] = fctremovestopwords(text);
+            
+surity = [];
+def  countCrimeAcceptancePhrases(phrase):
+    for p in range(0,len(CompletedataNoStopWords)):
+        if phrase in CompletedataNoStopWords[p][0].lower():
+            surity.append(p);
+    
+arr = ['accepts','admitted','pled guilty','pleaded guilty','charged with','got jail','indicted of','was indicted','is sentenced','indictment','surrendered','additionally charged'];
+
+for p in arr:
+    countCrimeAcceptancePhrases(p);       
+
+surity = set(surity);
+surity = list(surity)
+
+##################################################################################################################
+
+#def countInsuranceFraudTypes(insfraudtype):
+#    claimsinsurance = 0
+##    insfraud=copy.deepcopy(objinsfraud);
+#    for p in range(0,len(CompletedataNoStopWords)):
+#        if insfraudtype in CompletedataNoStopWords[p][0].lower():
+#            #print 'Found negative';
+#            claimsinsurance += 1;
+#            listinsurancefraud.append(p);
+#            if insfraudtype <> 'insurance fraud':
+##                insfraud=[];
+##                insfraud.append(p);
+#                print 'claimsinsurancecount = ', p;
+#                #len(listinsurancefraud) - 2660
+##                insfraud = set(insfraud);
+##                insfraud = list(insfraud);
+#                CompletedataNoStopWords[p].append(insfraudtype);
+#            else:
+#                print 'claimsinsurancecount = ', p;
+#                insfraud = set(listinsurancefraud);
+#                insfraud = list(insfraud);
+#                CompletedataNoStopWords[p].append(insfraudtype);
+#                
+#    return insfraud;
+
+listinsurancefraud=[]
+claimsinsurance=0
+insurancefraudtype = ['life insurance',
+     'health insurance', 
+     'auto insurance',
+     'property insurance', 
+     'health care insurance',
+     'health-care insurance', 
+     'auto-insurance',
+     'business insurance',
+     'medical insurance', 
+     'healthcare insurance',
+     'workers compensation', 
+     'private healthcare',
+     'catastrophe', 
+     'crop insurance',
+     'auto injury',
+     'automobile insurance', 
+     'homeowners insurance',
+     'fighting insurance', 
+     'premium fraud',
+     'medicaid fraud',
+     'compensation fraud',
+     'insurance fraud'] 
+
+for p in range(0,len(CompletedataNoStopWords)):
+    if(p==0):
+        CompletedataNoStopWords[p].append('FraudType');
+    else:            
+        for key in range(0,len(insurancefraudtype)):
+            if insurancefraudtype[key] in CompletedataNoStopWords[p][0].lower():
+                claimsinsurance += 1;
+                listinsurancefraud.append(p);
+                CompletedataNoStopWords[p].append(insurancefraudtype[key]);
+                break;
+            elif key == len(insurancefraudtype)-1:
+                CompletedataNoStopWords[p].append("Others");
+            
+        listinsurancefraud = set(listinsurancefraud)
+        listinsurancefraud = list(listinsurancefraud)
+##################################################################################################################    
+#This code will find fraud names in text appended with phrases in surity list
+finalentities=[];
+finalentitiestest = [];
+looprun=0;
+for countmain in range(0,len(CompletedataNoStopWords)):
+    if countmain == 0:
+       CompletedataNoStopWords[0].append('FinalList'); 
+    else :
+        if (countmain in surity) and (len(CompletedataNoStopWords[countmain][7]) <> 1 and len(CompletedataNoStopWords[countmain][7]) <> 2):        
+            looprun+=1;
+        
+        if len(CompletedataNoStopWords[countmain][7]) == 1:
+            uniquenameverification = CompletedataNoStopWords[countmain][7];
+            if type(uniquenameverification)==list:
+                CompletedataNoStopWords[countmain].append(uniquenameverification[0]);
+                finalentitiestest.append(uniquenameverification[0]);
+            else:
+                CompletedataNoStopWords[countmain].append(uniquenameverification);
+                finalentitiestest.append(uniquenameverification);
+        elif len(CompletedataNoStopWords[countmain][7])==2:
+            most_common,num_most_common = Counter(CompletedataNoStopWords[countmain][6]).most_common(1)[0]
+            uniquenameverification = most_common;
+            
+            if type(uniquenameverification)==list:
+                CompletedataNoStopWords[countmain].append(uniquenameverification[0]);
+                finalentitiestest.append(uniquenameverification[0]);
+            else:
+                CompletedataNoStopWords[countmain].append(uniquenameverification);
+                finalentitiestest.append(uniquenameverification);            
+        elif countmain not in surity:
+            CompletedataNoStopWords[countmain].append('');
+        else :   
+            if looprun == 1:
+                for f in range(0,len(surity)):
+                    index = surity[f];
+                    
+                    if (len(CompletedataNoStopWords[index][7]) <> 1) and (len(CompletedataNoStopWords[index][7]) <> 2):
+                        verification = [];
+                        verification.extend(CompletedataNoStopWords[index][8]); 
+                        
+                        uniquenameverification = CompletedataNoStopWords[index][7];
+                        
+                        for g in range(0,len(verification)):
+                            for b in range(0,len(uniquenameverification)):
+                                if ('accepts' + ' ' + uniquenameverification[b].lower() in verification[g].lower()) or (uniquenameverification[b].lower() + ' ' + 'accepts' in verification[g].lower()):
+                                      finalentities.append(uniquenameverification[b]);
+                                      finalentitiestest.append(uniquenameverification[b]);
+                                elif ('admitted' + ' ' + uniquenameverification[b].lower() in verification[g].lower()) or (uniquenameverification[b].lower() + ' ' + 'admitted' in verification[g].lower()):
+                                     finalentities.append(uniquenameverification[b]);
+                                     finalentitiestest.append(uniquenameverification[b]);
+                                elif ('pled guilty' + ' ' + uniquenameverification[b].lower() in verification[g].lower()) or (uniquenameverification[b].lower() + ' ' + 'pled guilty' in verification[g].lower()):
+                                     finalentities.append(uniquenameverification[b]);
+                                     finalentitiestest.append(uniquenameverification[b]);
+                                elif ('pleaded guilty' + ' ' + uniquenameverification[b].lower() in verification[g].lower()) or (uniquenameverification[b].lower() + ' ' + 'pleaded guilty' in verification[g].lower()):                
+                                     finalentities.append(uniquenameverification[b]);
+                                     finalentitiestest.append(uniquenameverification[b]);
+                                elif ('charged with' + ' ' + uniquenameverification[b].lower() in verification[g].lower()) or (uniquenameverification[b].lower() + ' ' + 'charged with' in verification[g].lower()):                
+                                     finalentities.append(uniquenameverification[b]);
+                                     finalentitiestest.append(uniquenameverification[b]);
+                                elif ('got jail' + ' ' + uniquenameverification[b].lower() in verification[g].lower()) or (uniquenameverification[b].lower() + ' ' + 'got jail' in verification[g].lower()):                
+                                     finalentities.append(uniquenameverification[b]);
+                                     finalentitiestest.append(uniquenameverification[b]);
+                                elif ('indicted of' + ' ' + uniquenameverification[b].lower() in verification[g].lower()) or (uniquenameverification[b].lower() + ' ' + 'indicted of' in verification[g].lower()):                
+                                     finalentities.append(uniquenameverification[b]);
+                                     finalentitiestest.append(uniquenameverification[b]);
+                                elif (uniquenameverification[b].lower() + ' ' + 'was indicted' in verification[g].lower()):                
+                                     finalentities.append(uniquenameverification[b]);
+                                     finalentitiestest.append(uniquenameverification[b]);
+                                elif (uniquenameverification[b].lower() + ' ' + 'is sentenced' in verification[g].lower()):                
+                                     finalentities.append(uniquenameverification[b]);
+                                     finalentitiestest.append(uniquenameverification[b]);
+                                elif  ('surrendered' + ' ' + uniquenameverification[b].lower() in verification[g].lower()) or (uniquenameverification[b].lower() + ' ' + 'surrendered' in verification[g].lower()) :                
+                                     finalentities.append(uniquenameverification[b]);
+                                     finalentitiestest.append(uniquenameverification[b]);
+                                elif  ('additionally charged' + ' ' + uniquenameverification[b].lower() in verification[g].lower()) or (uniquenameverification[b].lower() + ' ' + 'additionally charged' in verification[g].lower()) :                
+                                     finalentities.append(uniquenameverification[b]);
+                                     finalentitiestest.append(uniquenameverification[b]);     
+                        
+                    if len(finalentities) <> 0:
+                        
+                        finalentities = set(finalentities)
+                        finalentities = list(finalentities)
+                        finalentitiestest = set(finalentitiestest)
+                        finalentitiestest = list(finalentitiestest)
+                        CompletedataNoStopWords[index].append(finalentities);   
+                        finalentities=[]
+                    else:
+                        CompletedataNoStopWords[index].append('');
+                               
+#update full names like: Retamar to Elias Retamar.
+for m in range(0,len(CompletedataNoStopWords)):
+    counter = 0;
+    UpdatedName = '';
+    for n in range(0,len(CompletedataNoStopWords[m][7])):
+        name = re.sub(r'[-]',r' ',CompletedataNoStopWords[m][7][n]).lower();
+        for t in range(0,len(CompletedataNoStopWords[m][7])):
+            if name == re.sub(r'[-]',r' ',CompletedataNoStopWords[m][7][t]).lower():
+                name = name;
+            elif re.sub(r'[-]',r' ',CompletedataNoStopWords[m][7][t]).lower().find(name)!=-1 :
+                length = len(re.sub(r'[-]',r' ',CompletedataNoStopWords[m][7][t]).split());
+                if length > len(name.split()):
+                    if len(name.split())==1:                                        
+                        if name == re.sub(r'[-]',r' ',CompletedataNoStopWords[m][7][t]).lower().split()[length-1]:
+                            UpdatedName = CompletedataNoStopWords[m][7][t];
+                            counter +=1
+                    else:
+                        UpdatedName = CompletedataNoStopWords[m][7][t];
+                        counter +=1 
+                            
+        if counter == 1:
+            CompletedataNoStopWords[m][7][n] = UpdatedName;
+        counter=0;    
+    CompletedataNoStopWords[m][7] = set(CompletedataNoStopWords[m][7])
+    CompletedataNoStopWords[m][7] = list(CompletedataNoStopWords[m][7])
+
+#Set final column containing actual name according to evaluations 
+for counter3 in range(1,len(CompletedataNoStopWords)):
+   if len(CompletedataNoStopWords[counter3][7])<>0 and len(CompletedataNoStopWords[counter3][11])<>0:    
+        for finalcounter in range(0,len(CompletedataNoStopWords[counter3][11])):
+            for counter4 in range(0,len(CompletedataNoStopWords[counter3][7])):
+                namefinal = re.sub(r'[-]',r' ',CompletedataNoStopWords[counter3][7][counter4]).lower();
+                if type(CompletedataNoStopWords[counter3][11]) == list:                
+                    re.sub(r'[-]',r' ',CompletedataNoStopWords[counter3][11][finalcounter]).lower();
+                    if namefinal.find(re.sub(r'[-]',r' ',CompletedataNoStopWords[counter3][11][finalcounter]).lower())!=-1 :
+                       CompletedataNoStopWords[counter3][11][finalcounter] = CompletedataNoStopWords[counter3][7][counter4];
+                       finalentitiestest.append(CompletedataNoStopWords[counter3][7][counter4]);
+                else:
+                    re.sub(r'[-]',r' ',CompletedataNoStopWords[counter3][11]).lower();
+                    if namefinal.find(re.sub(r'[-]',r' ',CompletedataNoStopWords[counter3][11]).lower())!=-1 :
+                       CompletedataNoStopWords[counter3][11] = CompletedataNoStopWords[counter3][7][counter4];
+                       finalentitiestest.append(CompletedataNoStopWords[counter3][7][counter4]);    
+
+#Traverse empty fraud name rows and search for names which are already been named as fruad
+for counter3 in range(1,len(CompletedataNoStopWords)):
+    if len(CompletedataNoStopWords[counter3][7])<>0 and len(CompletedataNoStopWords[counter3][11])== 0:    
+        for counter4 in range(0,len(CompletedataNoStopWords[counter3][7])):
+            for finalcounter in range(0,len(finalentitiestest)):
+                namefinal = re.sub(r'[-]',r' ',CompletedataNoStopWords[counter3][7][counter4]).lower();
+                if type(finalentitiestest[finalcounter]) == list: 
+                    for counter2 in range(0,len(finalentitiestest[finalcounter])):
+                        re.sub(r'[-]',r' ',finalentitiestest[finalcounter][counter2]).lower();
+                        if namefinal.find(re.sub(r'[-]',r' ',finalentitiestest[finalcounter][counter2]).lower())!=-1 :
+                           CompletedataNoStopWords[counter3][11] = CompletedataNoStopWords[counter3][7][counter4];
+                           
+                else:
+                    re.sub(r'[-]',r' ',finalentitiestest[finalcounter]).lower();
+                    if namefinal.find(re.sub(r'[-]',r' ',finalentitiestest[finalcounter]).lower())!=-1 :
+                       CompletedataNoStopWords[counter3][11] = CompletedataNoStopWords[counter3][7][counter4];
+                       
+
+#####################################################################################################
+#Write data into the file
+
+book = xlwt.Workbook(encoding="utf-8")
+
+FraudInformation = book.add_sheet("FraudInformation")
+
+FraudInformation.write(0, 0, "Case_Notes")
+FraudInformation.write(0, 1, "Fraud_Name")
+FraudInformation.write(0, 2, "State")
+FraudInformation.write(0, 3, "FraudType")
+    
+i=0
+for n in range(1,len(CompletedataNoStopWords)):
+    i = i+1
+    FraudInformation.write(i, 0, CompletedataNoStopWords[n][0])
+    if type(CompletedataNoStopWords[n][11]) == list:
+        FraudInformation.write(i, 1, ",".join(CompletedataNoStopWords[n][11]))
+    else:
+        FraudInformation.write(i, 1, CompletedataNoStopWords[n][11])
+        
+    FraudInformation.write(i, 2, CompletedataNoStopWords[n][9])
+    FraudInformation.write(i, 3, CompletedataNoStopWords[n][10])
+
+
+
+book.save("ResultBook.xls")
+
+print("Your file is ready please check the results.");
+Status 
